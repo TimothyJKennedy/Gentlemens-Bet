@@ -5,16 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register</title>
     <link rel="stylesheet" href="/css/style.css">
+    <script>
+        // Client-side form validation
+        function validateForm() {
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            // Check if username is empty
+            if (username === "") {
+                alert("Username is required.");
+                return false;  // Prevent form submission
+            }
+
+            // Check if password is empty
+            if (password === "") {
+                alert("Password is required.");
+                return false;  // Prevent form submission
+            }
+
+            // Check if password is at least 6 characters long
+            if (password.length < 6) {
+                alert("Password must be at least 6 characters long.");
+                return false;  // Prevent form submission
+            }
+
+            return true;  // Allow form submission
+        }
+    </script>
 </head>
 <body>
     <h1>Register</h1>
-    <form action="/register" method="POST">
+    <form action="/register" method="POST" onsubmit="return validateForm()">
         <label for="username">Username:</label>
         <input type="text" id="username" name="username" required>
-        
+
         <label for="password">Password:</label>
         <input type="password" id="password" name="password" required>
-        
+
         <button type="submit">Register</button>
     </form>
     <p>Already have an account? <a href="/login">Login</a></p>
