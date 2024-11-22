@@ -31,12 +31,82 @@ app.get('/', (req, res) => res.render('index'));  // Home page
 app.get('/login', (req, res) => res.render('login'));  // Login page
 app.get('/register', (req, res) => res.render('register'));  // Registration page
 app.get('/dashboard', (req, res) => {
-    if (req.session.loggedIn) {
-        res.render('dashboard', { username: req.session.username });
-    } else {
-        res.redirect('/login');
+    if (!req.session.loggedIn) {
+        return res.redirect('/login');
     }
-});  // Dashboard page
+
+    // Query to get bets involving the logged-in user
+    const query = `
+    SELECT * FROM bets 
+    WHERE creator_username = ? OR opponent_username = ?
+    `;
+    db.all(query, [req.session.username, req.session.username], (err, rows) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Error loading bets.');
+        }
+
+        // Display bets in HTML
+        const betsHtml = rows.map(bet => `
+            <div>
+                <p><strong>Description:</strong> ${bet.description}</p>
+                <p><strong>Opponent:</strong> ${bet.opponent_username}</p>
+                <p><strong>Deadline:</strong> ${bet.deadline}</p>
+                <p><strong>Status:</strong> ${bet.status}</p>
+            </div>
+        `).join('');
+
+        res.send(`
+            <h1>Welcome, ${req.session.username}</h1>
+            <h2>Your Bets:</h2>
+            ${betsHtml}
+            <a href="/create-bet">Create New Bet</a>
+            <a href="/logout">Logout</a>
+        `);
+    });
+});
+
+// Route to display the bet creation form
+app.get('/create-bet', (req, res) => {
+    if (!req.session.loggedIn) {
+        return res.redirect('/login');
+    }
+
+    res.send(`
+        <form action="/create-bet" method="POST">
+            <label for="opponent">Opponent Username:</label>
+            <input type="text" id="opponent" name="opponent" required />
+
+            <label for="description">Bet Description:</label>
+            <textarea id="description" name="description" required></textarea>
+
+            <label for="deadline">Deadline (YYYY-MM-DD):</label>
+            <input type="date" id="deadline" name="deadline" required />
+
+            <button type="submit">Create Bet</button>
+        </form>
+    `);
+});
+
+// Route to handle bet creation
+app.post('/create-bet', (req, res) => {
+    const { opponent, description, deadline } = req.body;
+
+    if (!req.session.loggedIn) {
+        return res.redirect('/login');
+    }
+
+    // Insert the bet into the database
+    const query = `INSERT INTO bets (creator_username, opponent_username, description, deadline) VALUES (?, ?, ?, ?)`;
+    db.run(query, [req.session.username, opponent, description, deadline], function (err) {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Error creating bet.');
+        }
+
+        res.redirect('/dashboard');
+    });
+});
 
 // Registration route
 app.post('/register', (req, res) => {
@@ -108,7 +178,6 @@ app.post('/login', (req, res) => {
     });
 });
 
-
 // Handle logout
 app.get('/logout', (req, res) => {
     req.session.destroy(err => {
@@ -129,6 +198,12 @@ app.get('/dashboard', (req, res) => {
 
     // If logged in, render the dashboard with the username
     res.render('dashboard', { username: req.session.username });
+});
+
+// Error Handling
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).render('error', { message: "Something went wrong" });
 });
 
 // 404 Error Handling
